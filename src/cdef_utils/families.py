@@ -23,7 +23,7 @@ def parse_dates(col_name: str) -> pl.Expr:
     )
 
 
-def main():
+def main() -> None:
     # Read all bef parquet files
     bef_files = "directory/with/bef/files/*.parquet"
     bef = pl.scan_parquet(bef_files, allow_missing_columns=True).with_columns(
@@ -96,4 +96,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from typing import TYPE_CHECKING
+
+    if not TYPE_CHECKING:
+        main()

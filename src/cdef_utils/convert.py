@@ -4,12 +4,13 @@ import logging
 import multiprocessing
 import re
 import time
-from multiprocessing import Manager, Queue
+from multiprocessing import Manager
+from multiprocessing import Queue as MPQueue
 from pathlib import Path
 from typing import Any
 
 import polars as pl
-import pyarrow.parquet as pq
+import pyarrow.parquet as pq  # type: ignore
 from charset_normalizer import from_bytes
 from rich.console import Console
 from rich.live import Live
@@ -61,6 +62,9 @@ def detect_encoding_incrementally(file_path: Path) -> str:
     if result is None:
         return "utf-8"
 
+    if result.encoding == "ascii":
+        return "utf-8"
+
     return result.encoding
 
 
@@ -81,6 +85,8 @@ def read_file(file_path: Path) -> pl.DataFrame:
             )
         else:
             raise ValueError(f"Unsupported file format: {file_path.suffix}")
+    except ValueError as e:
+        raise e
     except Exception as e:
         logger.exception(f"Error reading file {file_path}: {e!s}")
         return pl.DataFrame()
@@ -91,7 +97,9 @@ def write_parquet_fast(df: pl.DataFrame, path: Path) -> None:
     pq.write_table(arrow_table, path)
 
 
-def process_file(file_path: Path, progress_queue: Queue) -> tuple[str, str, dict[str, Any]] | None:
+def process_file(
+    file_path: Path, progress_queue: MPQueue[Any]
+) -> tuple[str, str, dict[str, Any]] | None:
     try:
         file_stem = file_path.stem
 
@@ -156,7 +164,7 @@ def process_file(file_path: Path, progress_queue: Queue) -> tuple[str, str, dict
 
 
 def process_file_wrapper(
-    file_path: Path, summary: dict[str, Any], progress_queue: Queue
+    file_path: Path, summary: dict[str, Any], progress_queue: MPQueue[Any]
 ) -> tuple[str, str, dict[str, Any]] | None:
     return process_file(file_path, progress_queue)
 
@@ -185,10 +193,10 @@ def print_summary_table(summary: dict[str, Any]) -> Panel:
                 str(data["num_columns"]),
             )
 
-    return Panel(table, expand=False, border_style="blue")
+    return Panel(table, title="Processing Summary", expand=False, border_style="blue")
 
 
-def display_progress(progress_queue: Queue, total_files: int):
+def display_progress(progress_queue: MPQueue[Any], total_files: int) -> None:
     completed_files = 0
     process_status = {}
 
@@ -245,7 +253,7 @@ def process_files_with_progress(
             summary[register_name][year or register_name] = data
 
 
-def run_convert():
+def run_convert() -> None:
     parser = argparse.ArgumentParser(
         description="Convert CSV/Parquet files to Parquet and generate summary."
     )

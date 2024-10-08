@@ -9,11 +9,11 @@ COHORT_FILE = Path("data/03_lpr/cohort.parquet")
 OUTPUT_FILE = Path("data/04_covariates/cohort.parquet")
 
 
-def read_cohort_data():
+def read_cohort_data() -> pl.DataFrame:
     return pl.read_parquet(COHORT_FILE)
 
 
-def extract_year_from_filename(filename, dataset_type):
+def extract_year_from_filename(filename: Path, dataset_type: str) -> int | None:
     if dataset_type == "bef":
         match = re.search(r"(\d{4})(\d{2})", filename.stem)
         if match:
@@ -26,7 +26,7 @@ def extract_year_from_filename(filename, dataset_type):
     return None
 
 
-def process_bef_data(cohort_data):
+def process_bef_data(cohort_data: pl.DataFrame) -> pl.DataFrame:
     bef_files = DATA_DIR.glob("bef/*.parquet")
     bef_data = pl.concat(
         [
@@ -51,7 +51,7 @@ def process_bef_data(cohort_data):
     )
 
 
-def process_ind_data(cohort_data):
+def process_ind_data(cohort_data: pl.DataFrame) -> pl.DataFrame:
     ind_files = DATA_DIR.glob("ind/*.parquet")
     ind_data = pl.concat(
         [
@@ -71,7 +71,7 @@ def process_ind_data(cohort_data):
     )
 
 
-def process_akm_data(cohort_data):
+def process_akm_data(cohort_data: pl.DataFrame) -> pl.DataFrame:
     akm_files = DATA_DIR.glob("akm/*.parquet")
     akm_data = pl.concat(
         [
@@ -90,7 +90,7 @@ def process_akm_data(cohort_data):
     )
 
 
-def process_idan_data(cohort_data):
+def process_idan_data(cohort_data: pl.DataFrame) -> pl.DataFrame:
     idan_files = DATA_DIR.glob("idan/*.parquet")
     idan_data = pl.concat(
         [
@@ -109,7 +109,7 @@ def process_idan_data(cohort_data):
     )
 
 
-def main():
+def main() -> None:
     cohort_data = read_cohort_data()
     bef_data = process_bef_data(cohort_data)
     ind_data = process_ind_data(cohort_data)

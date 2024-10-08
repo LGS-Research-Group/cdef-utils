@@ -2,6 +2,8 @@ from pathlib import Path
 
 import polars as pl
 
+from cdef_utils.families import parse_dates
+
 # Constants
 DATA_DIR = Path("E:/workdata/708245/data/register")
 COHORT_FILE = Path("data/02_education/cohort.parquet")
@@ -83,32 +85,47 @@ LPR3_KONTAKTER_SCHEMA = {
 }
 
 
-def read_cohort_data():
+def read_cohort_data() -> pl.DataFrame:
     """Read cohort data from parquet file."""
     return pl.read_parquet(COHORT_FILE)
 
 
-def process_lpr_adm_file(file_path):
+def process_lpr_adm_file(file_path: Path) -> pl.DataFrame:
     """Process a single LPR2 ADM parquet file."""
-    return pl.read_parquet(file_path, columns=list(LPR_ADM_SCHEMA.keys()))
+    return pl.read_parquet(file_path, columns=list(LPR_ADM_SCHEMA.keys())).with_columns(
+        [
+            parse_dates("D_HENDTO").alias("D_HENDTO"),
+            parse_dates("D_INDDTO").alias("D_INDDTO"),
+            parse_dates("D_UDDTO").alias("D_UDDTO"),
+        ]
+    )
 
 
-def process_lpr_diag_file(file_path):
+def process_lpr_diag_file(file_path: Path) -> pl.DataFrame:
     """Process a single LPR2 DIAG parquet file."""
-    return pl.read_parquet(file_path, columns=list(LPR_DIAG_SCHEMA.keys()))
+    return pl.read_parquet(file_path, columns=list(LPR_DIAG_SCHEMA.keys())).with_columns(
+        [parse_dates("LEVERANCEDATO").alias("LEVERANCEDATO")]
+    )
 
 
-def process_lpr3_diagnoser_file(file_path):
+def process_lpr3_diagnoser_file(file_path: Path) -> pl.DataFrame:
     """Process a single LPR3 DIAGNOSER parquet file."""
     return pl.read_parquet(file_path, columns=list(LPR3_DIAGNOSER_SCHEMA.keys()))
 
 
-def process_lpr3_kontakter_file(file_path):
+def process_lpr3_kontakter_file(file_path: Path) -> pl.DataFrame:
     """Process a single LPR3 KONTAKTER parquet file."""
-    return pl.read_parquet(file_path, columns=list(LPR3_KONTAKTER_SCHEMA.keys()))
+    return pl.read_parquet(file_path, columns=list(LPR3_KONTAKTER_SCHEMA.keys())).with_columns(
+        [
+            parse_dates("dato_start").alias("dato_start"),
+            parse_dates("dato_slut").alias("dato_slut"),
+            parse_dates("dato_behandling_start").alias("dato_behandling_start"),
+            parse_dates("dato_indberetning").alias("dato_indberetning"),
+        ]
+    )
 
 
-def read_health_data():
+def read_health_data() -> pl.DataFrame:
     """Read and process all LPR2 and LPR3 parquet files."""
     lpr_adm = pl.concat([process_lpr_adm_file(f) for f in (DATA_DIR / "lpr_adm").glob(PARQUET)])
     lpr_diag = pl.concat([process_lpr_diag_file(f) for f in (DATA_DIR / "lpr_diag").glob(PARQUET)])
@@ -143,12 +160,14 @@ def read_health_data():
     return combined.sort(["PNR", "D_INDDTO"])
 
 
-def link_cohort_with_health_data(cohort_df, health_data):
+def link_cohort_with_health_data(
+    cohort_df: pl.DataFrame, health_data: pl.DataFrame
+) -> pl.DataFrame:
     """Link cohort data with health data."""
     return cohort_df.join(health_data, on="PNR", how="inner").sort(["PNR", "D_INDDTO"])
 
 
-def read_icd_descriptions():
+def read_icd_descriptions() -> pl.DataFrame:
     """Read ICD-10 code descriptions."""
     return pl.read_csv(ICD_FILE)
 
@@ -275,7 +294,7 @@ def apply_scd_algorithm(df: pl.DataFrame) -> pl.DataFrame:
     return df_with_scd
 
 
-def add_icd_descriptions(df, icd_descriptions):
+def add_icd_descriptions(df: pl.DataFrame, icd_descriptions: pl.DataFrame) -> pl.DataFrame:
     """Add ICD-10 descriptions to the dataframe."""
     return (
         df.with_columns(
@@ -301,7 +320,7 @@ def add_icd_descriptions(df, icd_descriptions):
     )
 
 
-def main():
+def main() -> None:
     # Read cohort data
     cohort_df = read_cohort_data()
 

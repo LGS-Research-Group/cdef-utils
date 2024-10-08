@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import polars as pl
-import pyreadr
+import pyreadr  # type: ignore
 
 # Constants
 FAM_IN = Path("data/01_family")
@@ -10,13 +10,11 @@ EDU_FILES = Path("E:/workdata/708245/data/register/uddf/*.parquet")
 ISCED_PATH = Path("data/isced.parquet")
 RDAT = Path("E:/workdata/708245/data/register/uddf/uddf.rda")
 
-
-def read_family_data():
+def read_family_data() -> pl.DataFrame:
     """Read family data from parquet file."""
     return pl.read_parquet(FAM_IN / "cohort.parquet")
 
-
-def read_isced_data():
+def read_isced_data() -> pl.DataFrame:
     """Read and process ISCED data from Rdata file."""
     if ISCED_PATH.exists():
         return pl.read_parquet(ISCED_PATH)
@@ -46,8 +44,7 @@ def read_isced_data():
 
         return isced_final
 
-
-def read_education_data(isced_data):
+def read_education_data(isced_data: pl.DataFrame) -> pl.DataFrame:
     """Read and process education data from parquet files."""
     edu_data = (
         pl.scan_parquet(EDU_FILES)
@@ -77,8 +74,7 @@ def read_education_data(isced_data):
     )
     return edu_data.join(isced_data, on="HFAUDD", how="left")
 
-
-def process_education_data(edu):
+def process_education_data(edu: pl.DataFrame) -> pl.DataFrame:
     """Process education data to get highest education level and type."""
     return edu.group_by("PNR").agg(
         [
@@ -93,8 +89,7 @@ def process_education_data(edu):
         ]
     )
 
-
-def join_family_and_education(family, edu_processed):
+def join_family_and_education(family: pl.DataFrame, edu_processed: pl.DataFrame) -> pl.DataFrame:
     """Join family and education data."""
     result = family.join(
         edu_processed.rename(
@@ -145,8 +140,7 @@ def join_family_and_education(family, edu_processed):
 
     return result
 
-
-def main():
+def main() -> None:
     # Ensure output directory exists
     EDU_OUT.mkdir(parents=True, exist_ok=True)
 
@@ -194,6 +188,7 @@ def main():
     final_result.write_parquet(EDU_OUT / "cohort.parquet")
     print(f"Data written to {EDU_OUT / 'cohort.parquet'}")
 
-
 if __name__ == "__main__":
-    main()
+    from typing import TYPE_CHECKING
+    if not TYPE_CHECKING:
+        main()
