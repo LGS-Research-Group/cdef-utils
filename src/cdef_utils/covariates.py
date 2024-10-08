@@ -17,7 +17,7 @@ def extract_year_from_filename(filename, dataset_type):
     if dataset_type == "bef":
         match = re.search(r"(\d{4})(\d{2})", filename.stem)
         if match:
-            year, month = match.groups()
+            year, _ = match.groups()
             return int(year)
     else:
         match = re.search(r"\d{4}", filename.stem)
@@ -45,9 +45,7 @@ def process_bef_data(cohort_data):
                 pl.col("ANTPERSH").alias("family_size").last(),
                 pl.col("KOM").alias("geographical_location").last(),
                 pl.col("IE_TYPE").alias("immigrant_background").first(),
-                (pl.col("FAR_ID") == pl.col("AEGTE_ID"))
-                .alias("parents_living_together")
-                .first(),
+                (pl.col("FAR_ID") == pl.col("AEGTE_ID")).alias("parents_living_together").first(),
             ]
         )
     )

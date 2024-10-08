@@ -50,6 +50,9 @@ OUTPUT_DIRECTORY = Path("/path/to/your/fixed/output/directory")
 # Precompile regex pattern
 FILE_PATTERN = re.compile(r"([a-zA-Z_]+)(\d+)")
 
+# Colors
+GREEN = "bold_green"
+
 
 def detect_encoding_incrementally(file_path: Path) -> str:
     with open(file_path, "rb") as file:
@@ -88,9 +91,7 @@ def write_parquet_fast(df: pl.DataFrame, path: Path) -> None:
     pq.write_table(arrow_table, path)
 
 
-def process_file(
-    file_path: Path, summary: dict[str, Any], progress_queue: Queue
-) -> tuple[str, str, dict[str, Any]] | None:
+def process_file(file_path: Path, progress_queue: Queue) -> tuple[str, str, dict[str, Any]] | None:
     try:
         file_stem = file_path.stem
 
@@ -110,9 +111,7 @@ def process_file(
 
         if output_path.exists():
             if output_path.stat().st_size <= 1_048_576:  # 1 MB threshold
-                logger.warning(
-                    f"Deleting small Parquet file for reprocessing: {output_path}"
-                )
+                logger.warning(f"Deleting small Parquet file for reprocessing: {output_path}")
                 output_path.unlink()
             else:
                 logger.info(f"Skipping already processed file: {file_path}")
@@ -128,20 +127,14 @@ def process_file(
                     },
                 )
 
-        progress_queue.put(
-            (multiprocessing.current_process().name, file_path.name, "Processing")
-        )
+        progress_queue.put((multiprocessing.current_process().name, file_path.name, "Processing"))
         df = read_file(file_path)
         write_parquet_fast(df, output_path)
-        progress_queue.put(
-            (multiprocessing.current_process().name, file_path.name, "Completed")
-        )
+        progress_queue.put((multiprocessing.current_process().name, file_path.name, "Completed"))
 
         read_back_df = pl.read_parquet(output_path)
         if not df.equals(read_back_df):
-            raise ValueError(
-                "Verification failed: written data does not match original data"
-            )
+            raise ValueError("Verification failed: written data does not match original data")
 
         logger.info(f"Processed {file_path.name} -> {output_path}")
 
@@ -157,9 +150,7 @@ def process_file(
         )
 
     except Exception as e:
-        progress_queue.put(
-            (multiprocessing.current_process().name, file_path.name, "Error")
-        )
+        progress_queue.put((multiprocessing.current_process().name, file_path.name, "Error"))
         logger.exception(f"Error processing file {file_path}: {e!s}")
         return None
 
@@ -167,7 +158,7 @@ def process_file(
 def process_file_wrapper(
     file_path: Path, summary: dict[str, Any], progress_queue: Queue
 ) -> tuple[str, str, dict[str, Any]] | None:
-    return process_file(file_path, summary, progress_queue)
+    return process_file(file_path, progress_queue)
 
 
 def save_summary(summary: dict[str, Any], output_file: Path) -> None:
@@ -177,9 +168,7 @@ def save_summary(summary: dict[str, Any], output_file: Path) -> None:
 
 
 def print_summary_table(summary: dict[str, Any]) -> Panel:
-    table = Table(
-        title="Processing Summary", show_header=True, header_style="bold magenta"
-    )
+    table = Table(title="Processing Summary", show_header=True, header_style="bold magenta")
     table.add_column("Register", style="cyan", no_wrap=True)
     table.add_column("Year", style="magenta")
     table.add_column("File Name", style="green")
@@ -229,7 +218,7 @@ def display_progress(progress_queue: Queue, total_files: int):
             live.refresh()
             time.sleep(0.1)
 
-    console.print(Panel(Text("Processing complete!", style="bold green"), expand=False))
+    console.print(Panel(Text("Processing complete!", style=GREEN), expand=False))
 
 
 def process_files_with_progress(
@@ -244,9 +233,7 @@ def process_files_with_progress(
         )
         progress_display.start()
 
-        results = pool.starmap(
-            process_file_wrapper, [(file, summary, progress_queue) for file in files]
-        )
+        results = pool.starmap(process_file_wrapper, [(file, progress_queue) for file in files])
 
         progress_display.join()
 
@@ -278,28 +265,22 @@ def main(input_directory: Path, num_processes: int | None = None) -> None:
     try:
         console.print(
             Panel(
-                Text("Starting file conversion and processing", style="bold green"),
+                Text("Starting file conversion and processing", style=GREEN),
                 expand=False,
             )
         )
 
-        files = list(input_directory.rglob("*.parquet")) + list(
-            input_directory.rglob("*.csv")
-        )
+        files = list(input_directory.rglob("*.parquet")) + list(input_directory.rglob("*.csv"))
         summary: dict[str, dict[str, Any]] = {}
 
         process_files_with_progress(files, summary, num_processes)
 
         console.print(print_summary_table(summary))
 
-        console.print(
-            Panel(Text("Processing complete!", style="bold green"), expand=False)
-        )
+        console.print(Panel(Text("Processing complete!", style=GREEN), expand=False))
         console.print(f"[bold blue]Total registers processed: {len(summary)}")
         console.print("[bold blue]Summary saved to: register_summary.json")
-        console.print(
-            f"[bold blue]Parquet files saved to: {OUTPUT_DIRECTORY}/registers"
-        )
+        console.print(f"[bold blue]Parquet files saved to: {OUTPUT_DIRECTORY}/registers")
     except Exception as e:
         console.print(
             Panel(

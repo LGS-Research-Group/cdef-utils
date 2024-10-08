@@ -7,6 +7,7 @@ DATA_DIR = Path("E:/workdata/708245/data/register")
 COHORT_FILE = Path("data/02_education/cohort.parquet")
 OUTPUT_FILE = Path("data/03_lpr/cohort.parquet")
 ICD_FILE = Path("data/icd10dict.csv")
+PARQUET = "*.parquet"
 
 LPR_ADM_SCHEMA = {
     "PNR": pl.Utf8,
@@ -109,25 +110,15 @@ def process_lpr3_kontakter_file(file_path):
 
 def read_health_data():
     """Read and process all LPR2 and LPR3 parquet files."""
-    lpr_adm = pl.concat(
-        [process_lpr_adm_file(f) for f in (DATA_DIR / "lpr_adm").glob("*.parquet")]
-    )
-    lpr_diag = pl.concat(
-        [process_lpr_diag_file(f) for f in (DATA_DIR / "lpr_diag").glob("*.parquet")]
-    )
+    lpr_adm = pl.concat([process_lpr_adm_file(f) for f in (DATA_DIR / "lpr_adm").glob(PARQUET)])
+    lpr_diag = pl.concat([process_lpr_diag_file(f) for f in (DATA_DIR / "lpr_diag").glob(PARQUET)])
 
     # LPR3 files are not present in the provided directory structure
     lpr3_diagnoser = pl.concat(
-        [
-            process_lpr3_diagnoser_file(f)
-            for f in (DATA_DIR / "diagnoser").glob("*.parquet")
-        ]
+        [process_lpr3_diagnoser_file(f) for f in (DATA_DIR / "diagnoser").glob(PARQUET)]
     )
     lpr3_kontakter = pl.concat(
-        [
-            process_lpr3_kontakter_file(f)
-            for f in (DATA_DIR / "kontakter").glob("*.parquet")
-        ]
+        [process_lpr3_kontakter_file(f) for f in (DATA_DIR / "kontakter").glob(PARQUET)]
     )
 
     # Combine LPR2 ADM and DIAG
